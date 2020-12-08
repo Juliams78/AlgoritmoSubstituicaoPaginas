@@ -32,7 +32,7 @@ typedef struct {
 // - A tabela de páginas
 // - O tamanho da mesma
 // - A última página acessada
-// - A primeira modura acessada (para fifo)
+// - A primeira moldura acessada (para fifo)
 // - O número de molduras
 // - Se a última instrução gerou um ciclo de clock
 //
@@ -40,7 +40,17 @@ typedef struct {
 
 int fifo(int8_t** page_table, int num_pages, int prev_page,
          int fifo_frm, int num_frames, int clock) {
-    return -1;
+		
+		//printf("Teste: %d\n", fifo_frm);
+		int page = fifo_frm;
+		if(page_table[page][PT_MAPPED]== 0){
+			page += 1;
+		}
+
+		//printf("Teste 2: %d\n", page);
+		
+		 return page;
+			
 }
 
 int second_chance(int8_t** page_table, int num_pages, int prev_page,
@@ -101,19 +111,21 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
     if ((*num_free_frames) > 0) { // Ainda temos memória física livre!
         next_frame_addr = find_next_frame(physical_memory, num_free_frames,
                                           num_frames, prev_free);
-        if (*fifo_frm == -1)
+        if (*fifo_frm == -1) //se não há nada na tabela de páginas, adiciona a primeira moldura acessada
             *fifo_frm = next_frame_addr;
-        *num_free_frames = *num_free_frames - 1;
+        *num_free_frames = *num_free_frames - 1; //diminui o número total de páginas livres
+
     } else { // Precisamos liberar a memória!
         assert(*num_free_frames == 0);
         int to_free = evict(page_table, num_pages, *prev_page, *fifo_frm,
-                            num_frames, clock);
+                            num_frames, clock); //aqui que chama as funções de algoritmo
         assert(to_free >= 0);
         assert(to_free < num_pages);
         assert(page_table[to_free][PT_MAPPED] != 0);
 
-        next_frame_addr = page_table[to_free][PT_FRAMEID];
-        *fifo_frm = (*fifo_frm + 1) % num_frames;
+
+        next_frame_addr = page_table[to_free][PT_FRAMEID]; //pega endereço de qual o frame da pagina que vai sair
+        *fifo_frm = (*fifo_frm + 1) % num_frames; //atualiza a "primeira pagina a sair" do fifo
         // Libera pagina antiga
         page_table[to_free][PT_FRAMEID] = -1;
         page_table[to_free][PT_MAPPED] = 0;
@@ -125,7 +137,7 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
 
     // Coloca endereço físico na tabela de páginas!
     int8_t *page_table_data = page_table[virt_addr];
-    page_table_data[PT_FRAMEID] = next_frame_addr;
+    page_table_data[PT_FRAMEID] = next_frame_addr; //coloca a nova pagina no lugar da pagina antiga
     page_table_data[PT_MAPPED] = 1;
     if (access_type == WRITE) {
         page_table_data[PT_DIRTY] = 1;
@@ -182,7 +194,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    char *algorithm = argv[1];
+    char *algorithm = argv[1]; //pega qual algoritmo foi passado como parâmetro
     int clock_freq = parse(argv[2]);
     int num_pages;
     int num_frames;
@@ -201,7 +213,7 @@ int main(int argc, char **argv) {
     eviction_f evict = NULL;
     for (int i = 0; i < n_policies; i++) {
         if (strcmp(policies[i].name, algorithm) == 0) {
-            evict = policies[i].function;
+            evict = policies[i].function; //evict fala qual o algoritmo que será utilizado
             break;
         }
     }
