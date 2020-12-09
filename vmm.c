@@ -40,17 +40,16 @@ typedef struct {
 
 int fifo(int8_t** page_table, int num_pages, int prev_page,
          int fifo_frm, int num_frames, int clock) {
-		
-		//printf("Teste: %d\n", fifo_frm);
-		int page = fifo_frm;
-		if(page_table[page][PT_MAPPED]== 0){
-			page += 1;
-		}
+	
 
-		//printf("Teste 2: %d\n", page);
+		int page = fifo_frm;
+		if(page_table[page][PT_MAPPED]== 0){ //ve se a pagina nao está mapeada
+			page = page +2;
+			
+		}
 		
 		 return page;
-			
+
 }
 
 int second_chance(int8_t** page_table, int num_pages, int prev_page,
@@ -104,6 +103,7 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
 
     if (page_table[virt_addr][PT_MAPPED] == 1) {
         page_table[virt_addr][PT_REFERENCE_BIT] = 1;
+        //printf("Fifofrm em 0: %d\n", *fifo_frm);
         return 0; // Not Page Fault!
     }
 
@@ -113,19 +113,24 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
                                           num_frames, prev_free);
         if (*fifo_frm == -1) //se não há nada na tabela de páginas, adiciona a primeira moldura acessada
             *fifo_frm = next_frame_addr;
+        //printf("Fifofrm em 1: %d\n", *fifo_frm);
         *num_free_frames = *num_free_frames - 1; //diminui o número total de páginas livres
+
 
     } else { // Precisamos liberar a memória!
         assert(*num_free_frames == 0);
         int to_free = evict(page_table, num_pages, *prev_page, *fifo_frm,
                             num_frames, clock); //aqui que chama as funções de algoritmo
+        //printf("to_free: %d\n", to_free);
+
         assert(to_free >= 0);
         assert(to_free < num_pages);
-        assert(page_table[to_free][PT_MAPPED] != 0);
+        assert(page_table[to_free][PT_MAPPED] != 0); //verifica se a página pra sair está mapeada
 
 
         next_frame_addr = page_table[to_free][PT_FRAMEID]; //pega endereço de qual o frame da pagina que vai sair
         *fifo_frm = (*fifo_frm + 1) % num_frames; //atualiza a "primeira pagina a sair" do fifo
+       
         // Libera pagina antiga
         page_table[to_free][PT_FRAMEID] = -1;
         page_table[to_free][PT_MAPPED] = 0;
@@ -133,12 +138,14 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
         page_table[to_free][PT_REFERENCE_BIT] = 0;
         page_table[to_free][PT_REFERENCE_MODE] = 0;
         page_table[to_free][PT_AGING_COUNTER] = 0;
+         //printf("Fifofrm em 2: %d\n", *fifo_frm);
+
     }
 
     // Coloca endereço físico na tabela de páginas!
     int8_t *page_table_data = page_table[virt_addr];
     page_table_data[PT_FRAMEID] = next_frame_addr; //coloca a nova pagina no lugar da pagina antiga
-    page_table_data[PT_MAPPED] = 1;
+    page_table_data[PT_MAPPED] = 1; //diz que a pagina está mapeada
     if (access_type == WRITE) {
         page_table_data[PT_DIRTY] = 1;
     }
@@ -171,7 +178,8 @@ void run(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
                            virt_addr, access_type, evict, clock);
         i++;
     }
-    printf("%d\n", faults); //resultado final da execução do algoritmo é o número de page faults
+    
+    printf("Faults: %d\n", faults); //resultado final da execução do algoritmo é o número de page faults
 }
 
 int parse(char *opt) {
